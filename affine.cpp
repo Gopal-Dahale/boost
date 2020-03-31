@@ -1,85 +1,167 @@
-#include <bits/stdc++.h>
+#ifndef BOOST_ASTRO_AFFINE
+#define BOOST_ASTRO_AFFINE
+
 #include <boost/astronomy/coordinate/cartesian_representation.hpp>
-#include <boost/geometry.hpp>
-#include <boost/units/unit.hpp>
-#include <boost/units/systems/si.hpp>
+#include <iostream>
+#include <math.h>
+#define size 4
+using namespace boost::units;
+using namespace boost::units::si;
+using namespace boost::astronomy::coordinate;
 
-using namespace std;
-namespace bu = boost::units;
-namespace bg = boost::geometry;
-namespace bac = boost::astronomy::coordinate;
+namespace boost::astronomy::coordinate
+{
 
-// some quantity
-typedef bu::quantity<bu::si::dimensionless, double> t;
-typedef bu::quantity<bu::si::length, double> s;
-
-/*
-template class 
-A : coordinate type
-X : Xquantity
-Y : Yquantity
-Z : Zquantity
-*/
-template <class A, class X, class Y, class Z>
 class affine
 {
 private:
-    double tform[3][3]; // affine 3x3 matrix
-    bg::model::point<A, 3, bg::cs::cartesian> p;
+    double tform[size][size];
+    void set_affine_matrix(double[size][size]);
 
 public:
-    //constructor initialises tform matrix
-    affine(double tform[3][3]);
-    // function that operates on cartesian representation vector and returns the answer
-    bac::cartesian_representation<A, X, Y, Z> transform_affine(bac::cartesian_representation<A, X, Y, Z>);
+    affine();
+
+    void translate(double, double, double);
+    void scale(double, double, double);
+    void rotateX(double);
+    void rotateY(double);
+    void rotateZ(double);
+    void shear(double, double, double, double, double, double);
+    void show_affine_matrix();
+    template <
+        template <typename...> class Representation,
+        typename... Args>
+    auto affine_transform(Representation<Args...> const &);
 };
 
-// tform initialisation
-template <class A, class X, class Y, class Z>
-affine<A, X, Y, Z>::affine(double tform[3][3])
+/* creates a 4x4 identity matrix and assign it to affine matrix*/
+affine::affine()
 {
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            this->tform[i][j] = tform[i][j];
+    for (unsigned int i = 0; i < size; i++)
+        for (unsigned j = 0; j < size; j++)
+            this->tform[i][j] = ((i == j) ? 1 : 0);
+}
+/* sets the affine matrix  */
+void affine::set_affine_matrix(double mat[size][size])
+{
+    for (int i = 0; i < size; i++)
+        for (int j = 0; j < size; j++)
+            this->tform[i][j] = mat[i][j];
+}
+/*function to translate the given point in x, y, z by tx, ty, tz respectively */
+void affine::translate(double tx, double ty, double tz)
+{
+    double mat[size][size] = {
+        {1, 0, 0, tx},
+        {0, 1, 0, ty},
+        {0, 0, 1, tz},
+        {0, 0, 0, 1}};
+    this->set_affine_matrix(mat);
+}
+/*function to scale by sx, sy, sz*/
+void affine::scale(double sx, double sy, double sz)
+{
+    double mat[size][size] = {
+        {sx, 0, 0, 0},
+        {0, sy, 0, 0},
+        {0, 0, sz, 0},
+        {0, 0, 0, 1}};
+    this->set_affine_matrix(mat);
 }
 
-// logic
-template <class A, class X, class Y, class Z>
-bac::cartesian_representation<A, X, Y, Z> affine<A, X, Y, Z>::transform_affine(bac::cartesian_representation<A, X, Y, Z> v)
+/*function to rotate a point about x axis by 'angle' radians  */
+void affine::rotateX(double angle) //radian
 {
-    XQuantity::from_value(bg::get<0>(this->point));
-    bac::cartesian_representation<A, X, Y, Z> res;
-    double r, temp[3], tres[3] = {0, 0, 0};
+    double c = std::cos(angle);
+    double s = std::sin(angle);
+    double mat[size][size] = {
+        {1, 0, 0, 0},
+        {0, c, -s, 0},
+        {0, s, c, 0},
+        {0, 0, 0, 1}};
+    this->set_affine_matrix(mat);
+}
 
-    X x = v.get_x();
-    temp[0] = v.get_x().value();
-    temp[1] = v.get_y().value();
-    temp[2] = v.get_z().value();
+/*function to rotate a point about y axis by 'angle' radians */
+void affine::rotateY(double angle)
+{
+    double c = std::cos(angle);
+    double s = std::sin(angle);
+    double mat[size][size] = {
+        {c, 0, s, 0},
+        {0, 1, 0, 0},
+        {-s, 0, c, 0},
+        {0, 0, 0, 1}};
+    this->set_affine_matrix(mat);
+}
 
-    for (int i = 0; i < 3; i++)
+/*function to rotate a point about z axis by 'angle' radians  */
+void affine::rotateZ(double angle)
+{
+    double c = std::cos(angle);
+    double s = std::sin(angle);
+    double mat[size][size] = {
+        {c, -s, 0, 0},
+        {s, c, 0, 0},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1}};
+    this->set_affine_matrix(mat);
+}
+
+/*function to shear */
+void affine::shear(double sxy, double syx, double sxz, double szx, double syz, double szy)
+{
+    double mat[size][size] = {
+        {1, sxy, sxz, 0},
+        {syx, 1, syz, 0},
+        {szx, szy, 1, 0},
+        {0, 0, 0, 1}};
+
+    this->set_affine_matrix(mat);
+}
+
+/*function to display the affine matrix */
+void affine::show_affine_matrix()
+{
+    for (int i = 0; i < size; i++)
     {
-        for (int j = 0; j < 3; j++)
-            tres[i] += this->tform[i][j] * temp[j];
+        for (int j = 0; j < size; j++)
+            std::cout << this->tform[i][j] << " ";
+        std::cout << "\n";
     }
-    this->p.set<0>(temp[0]);
-    this->p.set<1>(temp[1]);
-    this->p.set<2>(temp[2]);
-
-    res.set_x(X.) return res;
 }
 
-int main()
+/*function to apply affine transformation  */
+template <
+    template <typename...> class Rep, // representation
+    typename... Args>
+auto affine::affine_transform(Rep<Args...> const &vec)
 {
-    bac::cartesian_representation<int, t, t, t> x;
-    double mat[3][3] = {
-        {3, 0, 0},
-        {0, 4, 0},
-        {0, 0, 1}};
+    auto v = make_cartesian_representation(vec);
+    typedef decltype(v) vtype;
 
-    // affine<int, s, s, s> A(mat);
-    s p;
-    bg::model::point<int, 3, bg::cs::cartesian> point1(1, 3, 4);
-    bg::se
-    A.transform_affine(x);
-    return 0;
+    double x[size];
+    double b[size] = {0, 0, 0, 0};
+    x[0] = v.get_x().value();
+    x[1] = v.get_y().value();
+    x[2] = v.get_z().value();
+    x[3] = 1;
+
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+        {
+            b[i] += this->tform[i][j] * x[j];
+        }
+    }
+    v.set_x(static_cast<typename vtype::type>(b[0]) *
+            typename vtype::quantity1::unit_type());
+    v.set_y(static_cast<typename vtype::type>(b[1]) *
+            typename vtype::quantity2::unit_type());
+    v.set_z(static_cast<typename vtype::type>(b[2]) *
+            typename vtype::quantity3::unit_type());
+    return Rep<Args...>(v);
 }
+} // namespace boost::astronomy::coordinate
+
+#endif
